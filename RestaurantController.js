@@ -1,15 +1,10 @@
-'use strict'
-const models = require('../models')
-const Restaurant = models.Restaurant
-const Product = models.Product
-const RestaurantCategory = models.RestaurantCategory
-const ProductCategory = models.ProductCategory
+import { Restaurant, Product, RestaurantCategory, ProductCategory } from '../models/models.js'
 
-exports.index = async function (req, res) {
+const index = async function (req, res) {
   try {
     const restaurants = await Restaurant.findAll(
       {
-        attributes: ['id', 'name', 'description', 'address', 'postalCode', 'url', 'shippingCosts', 'averageServiceMinutes', 'email', 'phone', 'logo', 'heroImage', 'status', 'restaurantCategoryId'],
+        attributes: { exclude: ['userId'] },
         include:
       {
         model: RestaurantCategory,
@@ -24,12 +19,16 @@ exports.index = async function (req, res) {
   }
 }
 
-exports.indexOwner = async function (req, res) {
+const indexOwner = async function (req, res) {
   try {
     const restaurants = await Restaurant.findAll(
       {
-        attributes: ['id', 'name', 'description', 'address', 'postalCode', 'url', 'shippingCosts', 'averageServiceMinutes', 'email', 'phone', 'logo', 'heroImage', 'status', 'restaurantCategoryId'],
-        where: { userId: req.user.id }
+        attributes: { exclude: ['userId'] },
+        where: { userId: req.user.id },
+        include: [{
+          model: RestaurantCategory,
+          as: 'restaurantCategory'
+        }]
       })
     res.json(restaurants)
   } catch (err) {
@@ -37,16 +36,9 @@ exports.indexOwner = async function (req, res) {
   }
 }
 
-exports.create = async function (req, res) {
+const create = async function (req, res) {
   const newRestaurant = Restaurant.build(req.body)
   newRestaurant.userId = req.user.id // usuario actualmente autenticado
-
-  if (typeof req.files?.heroImage !== 'undefined') {
-    newRestaurant.heroImage = req.files.heroImage[0].destination + '/' + req.files.heroImage[0].filename
-  }
-  if (typeof req.files?.logo !== 'undefined') {
-    newRestaurant.logo = req.files.logo[0].destination + '/' + req.files.logo[0].filename
-  }
   try {
     const restaurant = await newRestaurant.save()
     res.json(restaurant)
@@ -55,7 +47,7 @@ exports.create = async function (req, res) {
   }
 }
 
-exports.show = async function (req, res) {
+const show = async function (req, res) {
   // Only returns PUBLIC information of restaurants
   try {
     const restaurant = await Restaurant.findByPk(req.params.restaurantId, {
@@ -78,13 +70,7 @@ exports.show = async function (req, res) {
   }
 }
 
-exports.update = async function (req, res) {
-  if (typeof req.files?.heroImage !== 'undefined') {
-    req.body.heroImage = req.files.heroImage[0].destination + '/' + req.files.heroImage[0].filename
-  }
-  if (typeof req.files?.logo !== 'undefined') {
-    req.body.logo = req.files.logo[0].destination + '/' + req.files.logo[0].filename
-  }
+const update = async function (req, res) {
   try {
     await Restaurant.update(req.body, { where: { id: req.params.restaurantId } })
     const updatedRestaurant = await Restaurant.findByPk(req.params.restaurantId)
@@ -94,7 +80,7 @@ exports.update = async function (req, res) {
   }
 }
 
-exports.destroy = async function (req, res) {
+const destroy = async function (req, res) {
   try {
     const result = await Restaurant.destroy({ where: { id: req.params.restaurantId } })
     let message = ''
@@ -108,3 +94,13 @@ exports.destroy = async function (req, res) {
     res.status(500).send(err)
   }
 }
+
+const RestaurantController = {
+  index,
+  indexOwner,
+  create,
+  show,
+  update,
+  destroy
+}
+export default RestaurantController

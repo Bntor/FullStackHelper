@@ -1,8 +1,5 @@
-'use strict'
-const models = require('../models')
-const ProductCategory = models.ProductCategory
-
-exports.indexProductCategory = async function (req, res) {
+import { ProductCategory } from '../models/models.js'
+const index = async function (req, res) {
   try {
     const productCategories = await ProductCategory.findAll()
     res.json(productCategories)
@@ -10,3 +7,7 @@ exports.indexProductCategory = async function (req, res) {
     res.status(500).send(err)
   }
 }
+const ProductCategoryController = {
+  index
+}
+export default ProductCategoryController

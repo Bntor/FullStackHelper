@@ -1,19 +1,17 @@
-'use strict'
-const models = require('../models')
-const Product = models.Product
-const Order = models.Order
-const Restaurant = models.Restaurant
-const RestaurantCategory = models.RestaurantCategory
-const ProductCategory = models.ProductCategory
+import { Product, Order, Restaurant, RestaurantCategory, ProductCategory } from '../models/models.js'
+import Sequelize from 'sequelize'
 
-const Sequelize = require('sequelize')
-
-exports.indexRestaurant = async function (req, res) {
+const indexRestaurant = async function (req, res) {
   try {
     const products = await Product.findAll({
       where: {
         restaurantId: req.params.restaurantId
-      }
+      },
+      include: [
+        {
+          model: ProductCategory,
+          as: 'productCategory'
+        }]
     })
     res.json(products)
   } catch (err) {
@@ -21,7 +19,7 @@ exports.indexRestaurant = async function (req, res) {
   }
 }
 
-exports.show = async function (req, res) {
+const show = async function (req, res) {
   // Only returns PUBLIC information of products
   try {
     const product = await Product.findByPk(req.params.productId, {
@@ -38,11 +36,8 @@ exports.show = async function (req, res) {
   }
 }
 
-exports.create = async function (req, res) {
+const create = async function (req, res) {
   let newProduct = Product.build(req.body)
-  if (typeof req.file !== 'undefined') {
-    newProduct.image = req.file.destination + '/' + req.file.filename
-  }
   try {
     newProduct = await newProduct.save()
     res.json(newProduct)
@@ -51,10 +46,7 @@ exports.create = async function (req, res) {
   }
 }
 
-exports.update = async function (req, res) {
-  if (typeof req.file !== 'undefined') {
-    req.body.image = req.file.destination + '/' + req.file.filename
-  }
+const update = async function (req, res) {
   try {
     await Product.update(req.body, { where: { id: req.params.productId } })
     const updatedProduct = await Product.findByPk(req.params.productId)
@@ -64,7 +56,7 @@ exports.update = async function (req, res) {
   }
 }
 
-exports.destroy = async function (req, res) {
+const destroy = async function (req, res) {
   try {
     const result = await Product.destroy({ where: { id: req.params.productId } })
     let message = ''
@@ -79,7 +71,7 @@ exports.destroy = async function (req, res) {
   }
 }
 
-exports.popular = async function (req, res) {
+const popular = async function (req, res) {
   try {
     const topProducts = await Product.findAll(
       {
@@ -114,3 +106,13 @@ exports.popular = async function (req, res) {
     res.status(500).send(err)
   }
 }
+
+const ProductController = {
+  indexRestaurant,
+  show,
+  create,
+  update,
+  destroy,
+  popular
+}
+export default ProductController
