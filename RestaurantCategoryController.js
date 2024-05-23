@@ -1,8 +1,5 @@
-'use strict'
-const models = require('../models')
-const RestaurantCategory = models.RestaurantCategory
-
-exports.indexRestaurantCategory = async function (req, res) {
+import { RestaurantCategory } from '../models/models.js'
+const index = async function (req, res) {
   try {
     const restaurantCategories = await RestaurantCategory.findAll()
     res.json(restaurantCategories)
@@ -10,3 +7,7 @@ exports.indexRestaurantCategory = async function (req, res) {
     res.status(500).send(err)
   }
 }
+const RestaurantCategoryController = {
+  index
+}
+export default RestaurantCategoryController

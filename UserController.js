@@ -1,45 +1,37 @@
-'use strict'
-const models = require('../models')
-const User = models.User
-const bcrypt = require('bcryptjs')
-const crypto = require('crypto')
+import { User, Restaurant } from '../models/models.js'
+import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+import moment from 'moment'
 
-exports.indexWithRestaurants = async function (req, res) {
+const indexWithRestaurants = async (req, res) => {
   try {
-    const users = await User.findAll({ include: models.Restaurant })
+    const users = await User.findAll({ include: Restaurant })
     res.json(users)
   } catch (err) {
     res.status(500).send(err)
   }
 }
 
-exports.registerCustomer = function (req, res) {
-  _register(req, res, 'customer')
+const registerCustomer = async (req, res) => {
+  await _register(req, res, 'customer')
 }
 
-exports.registerOwner = function (req, res) {
-  _register(req, res, 'owner')
+const registerOwner = async (req, res) => {
+  await _register(req, res, 'owner')
 }
 
-const findByToken = function (providedToken) {
-  return User.findOne({ where: { token: providedToken }, attributes: { exclude: ['password'] } })
-    .then(user => {
-      if (!user) { // token not valid
-        throw new Error('Token not valid')
-      }
-      if (user.tokenExpiration < new Date()) {
-        throw new Error('Token expired.')
-      }
-      return user ? user.dataValues : null
-    })
-    .catch(err => {
-      throw err
-    })
+const findByToken = async (token) => {
+  const foundUser = await User.findOne({ where: { token } }, { attributes: { exclude: ['password'] } })
+  if (!foundUser) {
+    throw new Error('Token not valid')
+  }
+  if (foundUser.tokenExpiration < new Date()) {
+    throw new Error('Token expired.')
+  }
+  return foundUser
 }
 
-exports.findByToken = findByToken
-
-exports.isTokenValid = async function (req, res) {
+const isTokenValid = async (req, res) => {
   try {
     const user = await findByToken(req.body.token)
     res.json(user)
@@ -48,19 +40,19 @@ exports.isTokenValid = async function (req, res) {
   }
 }
 
-exports.loginOwner = async function (req, res) {
+const loginOwner = (req, res) => {
   _login(req, res, 'owner')
 }
 
-exports.loginCustomer = async function (req, res) {
+const loginCustomer = (req, res) => {
   _login(req, res, 'customer')
 }
 
-exports.show = async function (req, res) {
+const show = async (req, res) => {
   // Only returns PUBLIC information of users
   try {
     const user = await User.findByPk(req.params.userId, {
-      attributes: ['firstName', 'email', 'avatar', 'userType']
+      attributes: ['id', 'firstName', 'email', 'avatar', 'userType']
     })
     res.json(user)
   } catch (err) {
@@ -68,10 +60,7 @@ exports.show = async function (req, res) {
   }
 }
 
-exports.update = async function (req, res) {
-  if (typeof req.file !== 'undefined') {
-    req.body.avatar = req.file.destination + '/' + req.file.filename
-  }
+const update = async (req, res) => {
   try {
     await User.update(req.body, { where: { id: req.user.id } })
     const user = await User.findByPk(req.user.id, { attributes: { exclude: ['password'] } })// update method does not return updated row(s)
@@ -81,7 +70,7 @@ exports.update = async function (req, res) {
   }
 }
 
-exports.destroy = async function (req, res) {
+const destroy = async (req, res) => {
   try {
     const result = await User.destroy({ where: { id: req.user.id } })
     let message = ''
@@ -97,18 +86,12 @@ exports.destroy = async function (req, res) {
 }
 
 const _register = async (req, res, userType) => {
-  const newUser = User.build(req.body)
-  newUser.userType = userType
-  newUser.token = crypto.randomBytes(20).toString('hex')
-  const expirationDate = new Date()
-  expirationDate.setHours(expirationDate.getHours() + 1)
-  newUser.tokenExpiration = expirationDate
-  if (typeof req.file !== 'undefined') {
-    newUser.avatar = req.file.destination + '/' + req.file.filename
-  }
   try {
+    req.body.userType = userType
+    const newUser = new User(req.body)
     const registeredUser = await newUser.save()
-    res.json(registeredUser)
+    const updatedUser = await _updateToken(registeredUser.id, _createUserTokenDTO())
+    res.json(updatedUser)
   } catch (err) {
     if (err.name.includes('ValidationError') || err.name.includes('SequelizeUniqueConstraintError')) {
       res.status(422).send(err)
@@ -121,19 +104,48 @@ const _register = async (req, res, userType) => {
 const _login = async function (req, res, userType) {
   try {
     const user = await User.findOne({ where: { email: req.body.email, userType } })
-    if (!user || !bcrypt.compareSync(req.body.password, user.password)) {
-      return res.status(401).send({ errors: [{ param: 'login', msg: 'Wrong credentials' }] })
+    if (!user) {
+      res.status(401).send({ errors: [{ param: 'login', msg: 'Wrong credentials' }] })
     } else {
-      // Possible improvement: Encode user object so it could decoded when an API call is made
-      user.token = crypto.randomBytes(20).toString('hex')
-      const expirationDate = new Date()
-      expirationDate.setHours(expirationDate.getHours() + 1)
-      user.tokenExpiration = expirationDate
-      await user.save()
-      const userWithoutPassword = await User.findByPk(user.id, { attributes: { exclude: ['password'] } })
-      res.json(userWithoutPassword)
+      const passwordValid = await bcrypt.compare(req.body.password, user.password)
+      if (!passwordValid) {
+        res.status(401).send({ errors: [{ param: 'login', msg: 'Wrong credentials' }] })
+      } else {
+        const updatedUser = await _updateToken(user.id, _createUserTokenDTO())
+        res.json(updatedUser)
+      }
     }
   } catch (err) {
     res.status(401).send(err)
   }
 }
+
+const _updateToken = async (id, tokenDTO, ...args) => {
+  const entity = await User.findByPk(id, {
+    attributes: { exclude: ['password'] }
+  })
+  entity.set(tokenDTO)
+  return entity.save()
+}
+
+const _createUserTokenDTO = () => {
+  return {
+    token: crypto.randomBytes(20).toString('hex'),
+    tokenExpiration: moment().add(1, 'hour').toDate()
+  }
+}
+
+const UserController = {
+  indexWithRestaurants,
+  registerCustomer,
+  registerOwner,
+  findByToken,
+  isTokenValid,
+  loginOwner,
+  loginCustomer,
+  show,
+  update,
+  destroy
+}
+
+export default UserController

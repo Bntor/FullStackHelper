@@ -1,12 +1,7 @@
-'use strict'
-const models = require('../models')
-const Order = models.Order
-const Product = models.Product
-const Restaurant = models.Restaurant
-const User = models.User
-const moment = require('moment')
-const { Op } = require('sequelize')
-
+// eslint-disable-next-line no-unused-vars
+import { Order, Product, Restaurant, User, sequelizeSession } from '../models/models.js'
+import moment from 'moment'
+import { Op } from 'sequelize'
 const generateFilterWhereClauses = function (req) {
   const filterWhereClauses = []
   if (req.query.status) {
@@ -70,7 +65,7 @@ const generateFilterWhereClauses = function (req) {
 }
 
 // Returns :restaurantId orders
-exports.indexRestaurant = async function (req, res) {
+const indexRestaurant = async function (req, res) {
   const whereClauses = generateFilterWhereClauses(req)
   whereClauses.push({
     restaurantId: req.params.restaurantId
@@ -92,8 +87,8 @@ exports.indexRestaurant = async function (req, res) {
 // TODO: Implement the indexCustomer function that queries orders from current logged-in customer and send them back.
 // Orders have to include products that belongs to each order and restaurant details
 // sort them by createdAt date, desc.
-exports.indexCustomer = async function (req, res) {
-
+const indexCustomer = async function (req, res) {
+  res.status(500).send('This function is to be implemented')
 }
 
 // TODO: Implement the create function that receives a new order and stores it in the database.
@@ -102,8 +97,10 @@ exports.indexCustomer = async function (req, res) {
 // 2. If price is less or equals to 10€, shipping costs have to be restaurant default shipping costs and have to be added to the order total price
 // 3. In order to save the order and related products, start a transaction, store the order, store each product linea and commit the transaction
 // 4. If an exception is raised, catch it and rollback the transaction
-exports.create = async function (req, res) {
 
+const create = async (req, res) => {
+  // Use sequelizeSession to start a transaction
+  res.status(500).send('This function is to be implemented')
 }
 
 // TODO: Implement the update function that receives a modified order and persists it in the database.
@@ -112,18 +109,19 @@ exports.create = async function (req, res) {
 // 2. If price is less or equals to 10€, shipping costs have to be restaurant default shipping costs and have to be added to the order total price
 // 3. In order to save the updated order and updated products, start a transaction, update the order, remove the old related OrderProducts and store the new product lines, and commit the transaction
 // 4. If an exception is raised, catch it and rollback the transaction
-exports.update = async function (req, res) {
-
+const update = async function (req, res) {
+  // Use sequelizeSession to start a transaction
+  res.status(500).send('This function is to be implemented')
 }
 
 // TODO: Implement the destroy function that receives an orderId as path param and removes the associated order from the database.
 // Take into account that:
 // 1. The migration include the "ON DELETE CASCADE" directive so OrderProducts related to this order will be automatically removed.
-exports.destroy = async function (req, res) {
-
+const destroy = async function (req, res) {
+  res.status(500).send('This function is to be implemented')
 }
 
-exports.confirm = async function (req, res) {
+const confirm = async function (req, res) {
   try {
     const order = await Order.findByPk(req.params.orderId)
     order.startedAt = new Date()
@@ -134,7 +132,7 @@ exports.confirm = async function (req, res) {
   }
 }
 
-exports.send = async function (req, res) {
+const send = async function (req, res) {
   try {
     const order = await Order.findByPk(req.params.orderId)
     order.sentAt = new Date()
@@ -145,7 +143,7 @@ exports.send = async function (req, res) {
   }
 }
 
-exports.deliver = async function (req, res) {
+const deliver = async function (req, res) {
   try {
     const order = await Order.findByPk(req.params.orderId)
     order.deliveredAt = new Date()
@@ -159,7 +157,7 @@ exports.deliver = async function (req, res) {
   }
 }
 
-exports.show = async function (req, res) {
+const show = async function (req, res) {
   try {
     const order = await Order.findByPk(req.params.orderId, {
       include: [{
@@ -183,7 +181,7 @@ exports.show = async function (req, res) {
   }
 }
 
-exports.analytics = async function (req, res) {
+const analytics = async function (req, res) {
   const yesterdayZeroHours = moment().subtract(1, 'days').set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
   const todayZeroHours = moment().set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
   try {
@@ -232,3 +230,17 @@ exports.analytics = async function (req, res) {
     res.status(500).send(err)
   }
 }
+
+const OrderController = {
+  indexRestaurant,
+  indexCustomer,
+  create,
+  update,
+  destroy,
+  confirm,
+  send,
+  deliver,
+  show,
+  analytics
+}
+export default OrderController
